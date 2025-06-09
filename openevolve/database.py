@@ -11,7 +11,7 @@ import random
 import time
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
-from Levenshtein import distance, ratio
+from Levenshtein import ratio
 from filelock import FileLock, Timeout
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -353,7 +353,8 @@ class ProgramDatabase:
             logger.warning("No database path specified, skipping save")
             return
 
-        lock_path = save_path + ".lock"
+        lock_name = os.path.basename(save_path) + '.lock'
+        lock_path = os.path.join('tmp/locks', lock_name)
         try:
             with FileLock(lock_path, timeout=10):
                 # Create directory and remove old path if it exists
@@ -414,7 +415,8 @@ class ProgramDatabase:
             logger.info(f"Loaded database metadata with last_iteration={self.last_iteration}")
 
         # Load programs
-        lock_path = path + ".lock"
+        lock_name = os.path.basename(path) + '.lock'
+        lock_path = os.path.join('tmp/locks', lock_name)
         programs_dir = os.path.join(path, "programs")
         try:
             with FileLock(lock_path, timeout=10):
