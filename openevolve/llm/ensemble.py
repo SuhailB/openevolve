@@ -11,7 +11,7 @@ from openevolve.llm.base import LLMInterface
 from openevolve.llm.openai import OpenAILLM
 from openevolve.config import LLMModelConfig
 
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class LLMEnsemble:
@@ -35,7 +35,7 @@ class LLMEnsemble:
             self.random_state.seed(models_cfg[0].random_seed)
             logger.debug(f"LLMEnsemble: Set random seed to {models_cfg[0].random_seed} for deterministic model selection")
 
-        logging.info(
+        logger.info(
             f"Initialized LLM ensemble with models: "
             + ", ".join(
                 f"{model.name} (weight: {weight:.2f})"
