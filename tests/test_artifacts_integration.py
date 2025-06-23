@@ -212,25 +212,25 @@ def evaluate_stage1(program_path):
     def test_artifacts_disabled_integration(self):
         """Test that the full system works with artifacts disabled"""
 
-        with patch.dict(os.environ, {"ENABLE_ARTIFACTS": "false"}):
+        async def run_test():
+            self.database.config.enable_artifacts = False
+            self.evaluator.config.enable_artifacts = False
+            # Program with error
+            bad_code = "invalid syntax"
+            program_id = "disabled_test_1"
 
-            async def run_test():
-                # Program with error
-                bad_code = "invalid syntax"
-                program_id = "disabled_test_1"
+            # Evaluate
+            metrics = await self.evaluator.evaluate_program(bad_code, program_id)
 
-                # Evaluate
-                metrics = await self.evaluator.evaluate_program(bad_code, program_id)
+            # Should not have pending artifacts when disabled
+            artifacts = self.evaluator.get_pending_artifacts(program_id)
+            return metrics, artifacts
 
-                # Should not have pending artifacts when disabled
-                artifacts = self.evaluator.get_pending_artifacts(program_id)
-                return metrics, artifacts
+        metrics, artifacts = asyncio.run(run_test())
 
-            metrics, artifacts = asyncio.run(run_test())
-
-            # Should still get metrics but no artifacts
-            self.assertIsInstance(metrics, dict)
-            self.assertIsNone(artifacts)
+        # Should still get metrics but no artifacts
+        self.assertIsInstance(metrics, dict)
+        self.assertIsNone(artifacts)
 
     def test_successful_evaluation_with_artifacts(self):
         """Test that successful evaluations can also have artifacts"""

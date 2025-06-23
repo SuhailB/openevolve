@@ -178,6 +178,7 @@ class DatabaseConfig:
     # Random seed for reproducible sampling
     random_seed: Optional[int] = 42
 
+    enable_artifacts: bool = True  # Enable artifact storage
     # Artifact storage
     artifacts_base_path: Optional[str] = None  # Defaults to db_path/artifacts
     artifact_size_threshold: int = 32 * 1024  # 32KB threshold
@@ -188,6 +189,11 @@ class DatabaseConfig:
 @dataclass
 class EvaluatorConfig:
     """Configuration for program evaluation"""
+    # Temporary directory for evaluated programs
+    tmp_dir: Optional[str] = "/tmp"
+
+    # Source code extension
+    source_code_extension: Optional[str] = ".py"
 
     # General settings
     timeout: int = 300  # Maximum evaluation time in seconds
@@ -225,6 +231,7 @@ class Config:
     log_dir: Optional[str] = None
     random_seed: Optional[int] = 42
     language: str = None
+    enable_artifacts: bool = True
 
     # Component configurations
     llm: LLMConfig = field(default_factory=LLMConfig)
