@@ -1792,7 +1792,9 @@ class ProgramDatabase:
             return
 
         # Check if artifacts are enabled
-        artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        # artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        artifacts_enabled = self.config.enable_artifacts
+        logger.info(f"Artifacts in DB: {artifacts_enabled}")
         if not artifacts_enabled:
             logger.debug("Artifacts disabled, skipping storage")
             return
