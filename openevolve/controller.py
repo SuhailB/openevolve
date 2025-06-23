@@ -90,7 +90,9 @@ class OpenEvolve:
         self.output_dir = output_dir or os.path.join(
             os.path.dirname(initial_program_path), "openevolve_output"
         )
+
         os.makedirs(self.output_dir, exist_ok=True)
+        self.config.evaluator.tmp_dir = os.path.join(self.output_dir, "tmp")
 
         # Set up logging
         self._setup_logging()
@@ -137,6 +139,10 @@ class OpenEvolve:
             if not self.file_extension.startswith("."):
                 self.file_extension = f".{self.file_extension}"
 
+        # Artifacts settings
+        self.config.database.enable_artifacts = self.config.enable_artifacts
+        self.config.evaluator.enable_artifacts = self.config.enable_artifacts
+        
         # Initialize components
         self.llm_ensemble = LLMEnsemble(self.config.llm.models)
         self.llm_evaluator_ensemble = LLMEnsemble(self.config.llm.evaluator_models)
