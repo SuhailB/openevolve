@@ -121,15 +121,15 @@ class TestDatabaseArtifacts(unittest.TestCase):
 
     def test_artifacts_disabled(self):
         """Test that artifacts are skipped when disabled"""
-        with patch.dict(os.environ, {"ENABLE_ARTIFACTS": "false"}):
-            artifacts = {"stderr": "error message"}
+        self.database.config.enable_artifacts = False
+        artifacts = {"stderr": "error message"}
 
-            # Should not store artifacts when disabled
-            self.database.store_artifacts(self.program.id, artifacts)
+        # Should not store artifacts when disabled
+        self.database.store_artifacts(self.program.id, artifacts)
 
-            # Should return empty dict
-            retrieved = self.database.get_artifacts(self.program.id)
-            self.assertEqual(retrieved, {})
+        # Should return empty dict
+        retrieved = self.database.get_artifacts(self.program.id)
+        self.assertEqual(retrieved, {})
 
 
 class TestEvaluatorArtifacts(unittest.TestCase):
