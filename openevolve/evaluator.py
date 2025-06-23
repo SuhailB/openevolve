@@ -112,15 +112,20 @@ class Evaluator:
         program_id_str = f" {program_id}" if program_id else ""
 
         # Check if artifacts are enabled
-        artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        # artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        artifacts_enabled = self.config.enable_artifacts
+        logger.info(f"Artifacts enabled in Evaluator: {artifacts_enabled}")
 
         # Retry logic for evaluation
         last_exception = None
         for attempt in range(self.config.max_retries + 1):
             # Create a temporary file for the program
-            with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
-                temp_file.write(program_code.encode("utf-8"))
-                temp_file_path = temp_file.name
+            if not os.path.exists(self.config.tmp_dir):
+                os.makedirs(self.config.tmp_dir)
+            
+            with tempfile.NamedTemporaryFile(suffix=self.config.source_code_extension, delete=False, dir=self.config.tmp_dir) as temp_file:
+                 temp_file.write(program_code.encode("utf-8"))
+                 temp_file_path = temp_file.name
 
             try:
                 # Run evaluation
@@ -273,7 +278,7 @@ class Evaluator:
         """
         return self._pending_artifacts.pop(program_id, None)
 
-    async def _direct_evaluate(self, program_path: str) -> Dict[str, float]:
+    async def _direct_evaluate(self, program_path: str) ->  Union[Dict[str, float], EvaluationResult]:
         """
         Directly evaluate a program using the evaluation function with timeout
 
@@ -295,11 +300,12 @@ class Evaluator:
 
         # Run the evaluation with timeout - let exceptions bubble up for retry handling
         result = await asyncio.wait_for(run_evaluation(), timeout=self.config.timeout)
-
-        # Validate result
-        if not isinstance(result, dict):
-            logger.warning(f"Evaluation returned non-dictionary result: {result}")
-            return {"error": 0.0}
+        logger.info(f"return type: {type(result)}")
+        logger.info(f"result: {result}")
+        # # Validate result
+        # if not isinstance(result, dict):
+        #     logger.warning(f"Evaluation returned non-dictionary result: {result}")
+        #     return {"error": 0.0}
 
         return result
 
