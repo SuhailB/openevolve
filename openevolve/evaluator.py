@@ -146,15 +146,20 @@ class Evaluator:
         program_id_str = f" {program_id}" if program_id else ""
 
         # Check if artifacts are enabled
-        artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        # artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        artifacts_enabled = self.config.enable_artifacts
+        logger.info(f"Artifacts enabled in Evaluator: {artifacts_enabled}")
 
         # Retry logic for evaluation
         last_exception = None
         for attempt in range(self.config.max_retries + 1):
             # Create a temporary file for the program
-            with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
-                temp_file.write(program_code.encode("utf-8"))
-                temp_file_path = temp_file.name
+            if not os.path.exists(self.config.tmp_dir):
+                os.makedirs(self.config.tmp_dir)
+            
+            with tempfile.NamedTemporaryFile(suffix=self.config.source_code_extension, delete=False, dir=self.config.tmp_dir) as temp_file:
+                 temp_file.write(program_code.encode("utf-8"))
+                 temp_file_path = temp_file.name
 
             try:
                 # Run evaluation
