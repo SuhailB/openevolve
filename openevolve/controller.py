@@ -95,7 +95,9 @@ class OpenEvolve:
         self.output_dir = output_dir or os.path.join(
             os.path.dirname(initial_program_path), "openevolve_output"
         )
+
         os.makedirs(self.output_dir, exist_ok=True)
+        self.config.evaluator.tmp_dir = os.path.join(self.output_dir, "tmp")
 
         # Set up logging
         self._setup_logging()
@@ -297,14 +299,16 @@ class OpenEvolve:
                 diff_based_evolution=self.config.diff_based_evolution,
                 program_artifacts=parent_artifacts if parent_artifacts else None,
             )
-
+            logger.debug(f'Prompt keys: {list(prompt.keys())}')
+            logger.debug(f'======================================================User Prompt: {prompt["user"]}')
+            logger.debug(f'======================================================System message: {prompt["system"]}')
             # Generate code modification
             try:
                 llm_response = await self.llm_ensemble.generate_with_context(
                     system_message=prompt["system"],
                     messages=[{"role": "user", "content": prompt["user"]}],
                 )
-
+                logger.debug(f"======================================================LLM response: {llm_response}")
                 # Parse the response
                 if self.config.diff_based_evolution:
                     diff_blocks = extract_diffs(llm_response)

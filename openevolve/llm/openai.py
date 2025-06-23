@@ -33,7 +33,10 @@ class OpenAILLM(LLMInterface):
         self.api_base = model_cfg.api_base
         self.api_key = model_cfg.api_key
         self.random_seed = getattr(model_cfg, 'random_seed', None)
-
+        if self.random_seed is None:
+            logger.warning("Random seed is not set, using current time as seed")
+            self.random_seed = int(time.time())
+        logger.info(f"Random seed: {self.random_seed}")
         # Set up API client
         self.client = openai.OpenAI(
             api_key=self.api_key,
