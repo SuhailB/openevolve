@@ -236,8 +236,9 @@ class Evaluator:
 
             finally:
                 # Clean up temporary file
-                if os.path.exists(temp_file_path):
-                    os.unlink(temp_file_path)
+                pass
+                # if os.path.exists(temp_file_path):
+                #     os.unlink(temp_file_path)
 
         # All retries failed
         logger.error(
@@ -342,7 +343,7 @@ class Evaluator:
 
             # Run first stage with timeout
             try:
-
+                logger.info("Invoking evaluate_stage1")
                 async def run_stage1():
                     loop = asyncio.get_event_loop()
                     return await loop.run_in_executor(None, module.evaluate_stage1, program_path)
@@ -382,7 +383,7 @@ class Evaluator:
 
             # Run second stage with timeout
             try:
-
+                logger.info("Invoking evaluate_stage2")
                 async def run_stage2():
                     loop = asyncio.get_event_loop()
                     return await loop.run_in_executor(None, module.evaluate_stage2, program_path)
