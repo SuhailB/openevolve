@@ -264,7 +264,8 @@ class OpenEvolve:
 
         logger.info(f"Using island-based evolution with {self.config.database.num_islands} islands")
         self.database.log_island_status()
-
+        iteration_metrics_list = []
+        llm_calls = 0
         for i in range(start_iteration, total_iterations):
             iteration_start = time.time()
 
@@ -308,6 +309,7 @@ class OpenEvolve:
                     system_message=prompt["system"],
                     messages=[{"role": "user", "content": prompt["user"]}],
                 )
+                llm_calls += 1
                 logger.debug(f"======================================================LLM response: {llm_response}")
                 # Parse the response
                 if self.config.diff_based_evolution:
@@ -399,7 +401,7 @@ class OpenEvolve:
                 # Log progress
                 iteration_time = time.time() - iteration_start
                 self._log_iteration(i, parent, child_program, iteration_time)
-
+                iteration_metrics_list.append(child_program.metrics)
                 # Specifically check if this is the new best program
                 if self.database.best_program_id == child_program.id:
                     logger.info(f"🌟 New best solution found at iteration {i+1}: {child_program.id}")
@@ -432,6 +434,12 @@ class OpenEvolve:
                 logger.exception(f"Error in iteration {i+1}: {str(e)}")
                 continue
 
+        # save metrics to json file
+        with open(os.path.join(self.output_dir, "metrics.json"), "w") as f:
+            import json
+            json.dump(iteration_metrics_list, f, indent=2)
+            
+        logger.info(f"Completed Search with {llm_calls} LLM calls")
         # Get the best program using our tracking mechanism
         best_program = None
         if self.database.best_program_id:
