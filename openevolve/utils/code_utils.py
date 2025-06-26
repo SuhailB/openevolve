@@ -21,10 +21,13 @@ def parse_evolve_blocks(code: str) -> List[Tuple[int, int, str]]:
     comment_prefix = ""
     if language == "python":
         comment_prefix = "#"
+        comment_postfix = ""
     elif language == "cpp":
         comment_prefix = "//"
-    else:
-        raise ValueError(f"Unsupported language: {language}")
+        comment_postfix = ""
+    elif language == "md":
+        comment_prefix = "<!--"
+        comment_postfix = "-->"
     
     blocks = []
 
@@ -33,11 +36,11 @@ def parse_evolve_blocks(code: str) -> List[Tuple[int, int, str]]:
     block_content = []
 
     for i, line in enumerate(lines):
-        if f"{comment_prefix} EVOLVE-BLOCK-START" in line:
+        if f"{comment_prefix} EVOLVE-BLOCK-START {comment_postfix}" in line:
             in_block = True
             start_line = i
             block_content = []
-        elif f"{comment_prefix} EVOLVE-BLOCK-END" in line and in_block:
+        elif f"{comment_prefix} EVOLVE-BLOCK-END {comment_postfix}" in line and in_block:
             in_block = False
             blocks.append((start_line, i, "\n".join(block_content)))
         elif in_block:
@@ -213,4 +216,4 @@ def extract_code_language(code: str) -> str:
     elif re.search(r"^(SELECT|CREATE TABLE|INSERT INTO)", code, re.MULTILINE):
         return "sql"
 
-    return "unknown"
+    return "md"
