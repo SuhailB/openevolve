@@ -345,12 +345,12 @@ class OpenEvolve:
                     continue
         shutil.rmtree(temp_db_path)
 
-        # save metrics to json file
-        with open(os.path.join(self.output_dir, "metrics.json"), "w") as f:
-            import json
-            json.dump(iteration_metrics_list, f, indent=2)
+        # # save metrics to json file
+        # with open(os.path.join(self.output_dir, "metrics.json"), "w") as f:
+        #     import json
+        #     json.dump(iteration_metrics_list, f, indent=2)
             
-        logger.info(f"Completed Search with {llm_calls} LLM calls")
+        # logger.info(f"Completed Search with {llm_calls} LLM calls")
         # Get the best program using our tracking mechanism
         best_program = None
         if self.database.best_program_id:
