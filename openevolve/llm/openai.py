@@ -36,7 +36,7 @@ class OpenAILLM(LLMInterface):
         if self.random_seed is None:
             logger.warning("Random seed is not set, using current time as seed")
             self.random_seed = int(time.time())
-        logger.info(f"Random seed: {self.random_seed}")
+
         # Set up API client
         self.client = openai.OpenAI(
             api_key=self.api_key,
