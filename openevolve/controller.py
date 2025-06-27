@@ -281,10 +281,12 @@ class OpenEvolve:
                 )
 
             iteration = start_iteration + 1
+            iteration_metrics_list = []
             for future in concurrent.futures.as_completed(futures):
                 logger.info(f"Completed iteration {iteration}")
                 try:
                     result: Result = future.result()
+                    iteration_metrics_list.append(result.child_metrics)
                     # Manage island evolution - switch islands periodically
                     if (
                         iteration - 1 > start_iteration
@@ -344,7 +346,10 @@ class OpenEvolve:
                     logger.exception(f"Error in iteration {iteration}:")
                     continue
         shutil.rmtree(temp_db_path)
-
+        # save metrics to json file
+        with open(os.path.join(self.output_dir, "metrics.json"), "w") as f:
+            import json
+            json.dump(iteration_metrics_list, f, indent=2)
         # # save metrics to json file
         # with open(os.path.join(self.output_dir, "metrics.json"), "w") as f:
         #     import json
