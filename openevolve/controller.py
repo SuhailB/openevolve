@@ -301,6 +301,10 @@ class OpenEvolve:
                     # Add to database (will be added to current island)
                     self.database.add(result.child_program, iteration=iteration)
 
+                    # Store artifacts if they exist (after program is added to database)
+                    if result.artifacts:
+                        self.database.store_artifacts(result.child_program.id, result.artifacts)
+
                     # Increment generation for current island
                     self.database.increment_island_generation()
 

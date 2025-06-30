@@ -112,7 +112,8 @@ class Evaluator:
         program_id_str = f" {program_id}" if program_id else ""
 
         # Check if artifacts are enabled
-        artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        # artifacts_enabled = os.environ.get("ENABLE_ARTIFACTS", "true").lower() == "true"
+        artifacts_enabled = self.config.enable_artifacts
 
         # Retry logic for evaluation
         last_exception = None
