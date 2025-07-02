@@ -94,11 +94,13 @@ def run_iteration_sync(iteration: int, config: Config, evaluation_file: str, dat
 
         # Generate code modification
         try:
+            logger.debug(f"System message:\n {prompt['system']}")
+            logger.debug(f"User message:\n {prompt['user']}")
             llm_response = await llm_ensemble.generate_with_context(
                 system_message=prompt["system"],
                 messages=[{"role": "user", "content": prompt["user"]}],
             )
-
+            logger.debug(f"LLM response:\n {llm_response}")
             # Parse the response
             if config.diff_based_evolution:
                 diff_blocks = extract_diffs(llm_response)

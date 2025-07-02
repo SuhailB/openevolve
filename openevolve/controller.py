@@ -290,7 +290,11 @@ class OpenEvolve:
                 logger.info(f"Completed iteration {iteration}")
                 try:
                     result: Result = future.result()
-                    iteration_metrics_list.append(result.child_metrics)
+                    # if result is nonType
+                    if not isinstance(result, Result):
+                        logger.warning(f"No valid diffs or program length exceeded limit")
+                        continue
+                    
                     # Manage island evolution - switch islands periodically
                     if (
                         iteration - 1 > start_iteration
@@ -304,6 +308,7 @@ class OpenEvolve:
 
                     # Add to database (will be added to current island)
                     self.database.add(result.child_program, iteration=iteration)
+                    iteration_metrics_list.append(result.child_metrics)
 
                     # Store artifacts if they exist (after program is added to database)
                     if result.artifacts:
