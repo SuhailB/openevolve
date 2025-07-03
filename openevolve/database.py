@@ -358,9 +358,9 @@ class ProgramDatabase:
         try:
             with FileLock(lock_path, timeout=10):
                 # Create directory and remove old path if it exists
-                if os.path.exists(save_path):
-                    shutil.rmtree(save_path)
-                os.makedirs(save_path)
+                # if os.path.exists(save_path):
+                #     shutil.rmtree(save_path)
+                os.makedirs(save_path, exist_ok=True)
 
                 # Save each program
                 for program in self.programs.values():
