@@ -26,7 +26,10 @@ class Result:
     parent: str = None
     child_metrics: str = None
     iteration_time: float = None
+    prompt: str = None
+    llm_response: str = None
     artifacts: dict = None
+
 
 
 def run_iteration_sync(iteration: int, config: Config, evaluation_file: str, database_path: str):
@@ -152,7 +155,8 @@ def run_iteration_sync(iteration: int, config: Config, evaluation_file: str, dat
                     "parent_metrics": parent.metrics,
                 },
             )
-            
+            result.prompt = prompt
+            result.llm_response = llm_response
             # Store artifacts in the result so they can be saved later
             result.artifacts = artifacts
 

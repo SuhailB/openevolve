@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 import numpy as np
 
 from openevolve.config import DatabaseConfig
+from openevolve.utils.code_utils import calculate_edit_distance
 from openevolve.utils.metrics_utils import safe_numeric_average
 
 logger = logging.getLogger(__name__)
@@ -360,11 +361,20 @@ class ProgramDatabase:
                 # Create directory and remove old path if it exists
                 # if os.path.exists(save_path):
                 #     shutil.rmtree(save_path)
+                # create directory if it doesn't exist
                 os.makedirs(save_path, exist_ok=True)
 
                 # Save each program
                 for program in self.programs.values():
-                    self._save_program(program, save_path)
+                    prompts = None
+                    if (
+                        self.config.log_prompts
+                        and self.prompts_by_program
+                        and program.id in self.prompts_by_program
+                    ):
+                        prompts = self.prompts_by_program[program.id]
+                    self._save_program(program, save_path, prompts=prompts)
+                    
         except Timeout:
             logger.exception("Could not acquire the lock within 10 seconds")
 
