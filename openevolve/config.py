@@ -252,6 +252,9 @@ class Config:
     diff_based_evolution: bool = True
     max_code_length: int = 10000
 
+    # Enable Artifacts
+    enable_artifacts: bool = True
+    
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "Config":
         """Load configuration from a YAML file"""
