@@ -133,6 +133,10 @@ class OpenEvolve:
         self.initial_program_code = self._load_initial_program()
         self.language = extract_code_language(self.initial_program_code)
 
+        # Enable Artifacts
+        self.config.evaluator.enable_artifacts = self.config.enable_artifacts
+        self.config.database.enable_artifacts = self.config.enable_artifacts
+        
         # Extract file extension from initial program
         self.file_extension = os.path.splitext(initial_program_path)[1]
         if not self.file_extension:
