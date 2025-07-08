@@ -55,10 +55,12 @@ class TestPromptSampler(unittest.TestCase):
         
         # Test with both regular and minimization metrics
         program_metrics = {
-            "score": 0.8,           # Regular metric (maximize)
-            "-error_rate": 0.6,     # Minimization metric
-            "-latency": 0.05,        # Another minimization metric
-            "accuracy": 0.9         # Regular metric (maximize)
+            "improvement"      : 0.3,          
+            "improvement(-)"   : 0.1,  
+            "mixed"            : 0.3,
+            "mixed(-)"         : 0.3,
+            "regression"       : 0.1,
+            "regression(-)"    : 0.5,
         }
         
         # Create previous programs with different metric values to test comparison logic
@@ -67,20 +69,24 @@ class TestPromptSampler(unittest.TestCase):
                 "id": "prev1",
                 "code": "def prev1(): pass",
                 "metrics": {
-                    "score": 0.4,           # Worse than current (0.5)
-                    "-error_rate": 0.5,     # Worse than current (0.3) - should be higher for minimization
-                    "-latency": 0.9,        # Worse than current (0.8) - should be higher for minimization
-                    "accuracy": 0.91        # Better than current (0.8)
+                    "improvement"      : 0.1,
+                    "improvement(-)"   : 0.2,  
+                    "mixed"            : 0.1,
+                    "mixed(-)"         : 0.5,
+                    "regression"       : 0.5,
+                    "regression(-)"    : 0.3,
                 },
             },
             {
                 "id": "prev2", 
                 "code": "def prev2(): pass",
                 "metrics": {
-                    "score": 0.6,           # Better than current (0.5)
-                    "-error_rate": 0.2,     # Better than current (0.3) - should be lower for minimization
-                    "-latency": 0.7,        # Better than current (0.8) - should be lower for minimization
-                    "accuracy": 0.95        # Better than current (0.9)
+                    "improvement"      : 0.2,
+                    "improvement(-)"   : 0.3,
+                    "mixed"            : 0.5,
+                    "mixed(-)"         : 0.1,
+                    "regression"       : 0.7,
+                    "regression(-)"    : 0.2,
                 },
             }
         ]
@@ -91,7 +97,12 @@ class TestPromptSampler(unittest.TestCase):
             metrics=program_metrics,
             previous_programs=previous_programs
         )
-        print(f"=======Response=========\n{response}")
+        expected_response = [
+        "- Metrics showing improvement: improvement, improvement(-). Consider continuing with similar changes.",
+        "- Metrics showing regression: regression, regression(-). Consider reverting or revising recent changes in these areas."
+        ]
+        expected_response = "\n".join(expected_response)
+        self.assertEqual(response, expected_response)
 
 if __name__ == "__main__":
     unittest.main()
