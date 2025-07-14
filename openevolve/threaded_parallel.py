@@ -7,6 +7,8 @@ import logging
 import signal
 import threading
 import time
+import json
+import os
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Any, Dict, List, Optional
 
@@ -202,7 +204,7 @@ class ImprovedParallelController:
         # Island management
         programs_per_island = max(1, max_iterations // (self.config.database.num_islands * 10))
         current_island_counter = 0
-
+        iteration_metrics_list = []
         # Process results as they complete
         while (
             pending_futures
@@ -226,8 +228,8 @@ class ImprovedParallelController:
 
             try:
                 result = future.result()
-
-                if result and hasattr(result, "child_program") and result.child_program:
+                iteration_metrics_list.append(result.child_program.metrics)
+                if result and hasattr(result, 'child_program') and result.child_program:
                     # Thread-safe database update
                     with self.database_lock:
                         self.database.add(result.child_program, iteration=completed_iteration)
@@ -331,6 +333,13 @@ class ImprovedParallelController:
                 future = self.thread_pool.submit_evaluation(next_iteration_to_submit)
                 pending_futures[next_iteration_to_submit] = future
                 next_iteration_to_submit += 1
+        
+                # save metrics to json file
+        
+        # save metrics to json file
+        output_dir = self.config.evaluator.tmp_dir.replace("/tmp", "")
+        with open(os.path.join(output_dir, "metrics.json"), "w") as f:
+            json.dump(iteration_metrics_list, f, indent=2)
 
         # Handle shutdown or completion
         if self.shutdown_flag.is_set():
