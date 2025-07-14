@@ -9,6 +9,7 @@ import threading
 import time
 import json
 import os
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Any, Dict, List, Optional
 
@@ -337,8 +338,9 @@ class ImprovedParallelController:
                 # save metrics to json file
         
         # save metrics to json file
-        output_dir = self.config.evaluator.tmp_dir.replace("/tmp", "")
-        with open(os.path.join(output_dir, "metrics.json"), "w") as f:
+        output_dir = Path(self.config.evaluator.tmp_dir)
+        parent_dir = output_dir.parent
+        with open(os.path.join(parent_dir, "metrics.json"), "w") as f:
             json.dump(iteration_metrics_list, f, indent=2)
 
         # Handle shutdown or completion
