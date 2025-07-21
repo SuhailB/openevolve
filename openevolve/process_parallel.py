@@ -8,6 +8,8 @@ import multiprocessing as mp
 import pickle
 import signal
 import time
+import json
+import os
 from concurrent.futures import ProcessPoolExecutor, Future
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -390,7 +392,7 @@ class ProcessParallelController:
         # Island management
         programs_per_island = max(1, max_iterations // (self.config.database.num_islands * 10))
         current_island_counter = 0
-        
+        iteration_metrics_list = []
         # Process results as they complete
         while (
             pending_futures 
@@ -413,13 +415,13 @@ class ProcessParallelController:
             
             try:
                 result = future.result()
-                
+
                 if result.error:
                     logger.warning(f"Iteration {completed_iteration} error: {result.error}")
                 elif result.child_program_dict:
                     # Reconstruct program from dict
                     child_program = Program(**result.child_program_dict)
-                    
+                    iteration_metrics_list.append(child_program.metrics)
                     # Add to database
                     self.database.add(child_program, iteration=completed_iteration)
                     
@@ -525,7 +527,13 @@ class ProcessParallelController:
                 if future:
                     pending_futures[next_iteration] = future
                     next_iteration += 1
-        
+
+        # save metrics to json file
+        output_dir = Path(self.config.evaluator.tmp_dir)
+        parent_dir = output_dir.parent
+        with open(os.path.join(parent_dir, "metrics.json"), "w") as f:
+            json.dump(iteration_metrics_list, f, indent=2)
+
         # Handle shutdown
         if self.shutdown_event.is_set():
             logger.info("Shutdown requested, canceling remaining evaluations...")
