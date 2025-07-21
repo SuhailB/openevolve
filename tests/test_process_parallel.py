@@ -29,6 +29,7 @@ class TestProcessParallel(unittest.TestCase):
         self.config.max_iterations = 10
         self.config.evaluator.parallel_evaluations = 2
         self.config.evaluator.timeout = 10
+        self.config.evaluator.tmp_dir = self.test_dir
         self.config.database.num_islands = 2
         self.config.database.in_memory = True
         self.config.checkpoint_interval = 5
