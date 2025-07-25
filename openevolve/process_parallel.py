@@ -224,7 +224,8 @@ def _run_iteration_worker(
                 logger.debug("Meta prompting enabled but no meta prompts available in worker")
         
         iteration_start = time.time()
-        logger.info(f"OpenEvolve System Prompt:\n{prompt['system']}")
+        # logger.info(f"OpenEvolve System message:\n {prompt['system']}")
+        # logger.info(f"OpenEvolve User message:\n {prompt['user']}")
         # Generate code modification (sync wrapper for async)
         llm_response = asyncio.run(
             _worker_llm_ensemble.generate_with_context(
@@ -232,11 +233,7 @@ def _run_iteration_worker(
                 messages=[{"role": "user", "content": prompt["user"]}],
             )
         )
-<<<<<<< HEAD
-
-=======
         logger.debug(f"OpenEvolve LLM Response:\n {llm_response}")
->>>>>>> 8099335 (Updated prompt templates and llm response parsing)
         # Parse response based on evolution mode
         if _worker_config.diff_based_evolution:
             from openevolve.utils.code_utils import extract_diffs, apply_diff, format_diff_summary
@@ -273,11 +270,7 @@ def _run_iteration_worker(
 
             child_code = new_code
             changes_summary = "Full rewrite"
-<<<<<<< HEAD
-
-=======
         logger.debug(f"OpenEvolve LLM Response After Parsing:\n {child_code}")
->>>>>>> 8099335 (Updated prompt templates and llm response parsing)
         # Check code length
         if len(child_code) > _worker_config.max_code_length:
             return SerializableResult(
