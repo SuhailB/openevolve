@@ -96,6 +96,32 @@ def extract_diffs(diff_text: str) -> List[Tuple[str, str]]:
     diff_blocks = re.findall(diff_pattern, diff_text, re.DOTALL)
     return [(match[0].rstrip(), match[1].rstrip()) for match in diff_blocks]
 
+def extract_markdown_body(text: str) -> Optional[str]:
+    """
+    Grab everything between the first ```md / ```markdown fence
+    and the very last ``` fence (exclusive of both fences).
+
+    Args:
+        text: LLM response containing a fenced Markdown block.
+
+    Returns:
+        The inner Markdown content, or None if a matching pair isn’t found.
+    """
+    # 1) locate the first ```md or ```markdown fence
+    opener = re.search(r"```(?:md|markdown)\b[^\n\r]*[\n\r]+", text, re.IGNORECASE)
+    if not opener:
+        return None
+
+    start = opener.end()  # index right after the opening fence
+
+    # 2) locate the last ``` in the entire string
+    end = text.rfind("```")
+    if end == -1 or end <= start:
+        return None
+
+    # 3) slice out the body (strip trailing newlines/spaces if desired)
+    return text[start:end].rstrip("\r\n")
+
 
 def parse_full_rewrite(llm_response: str, language: str = "python") -> Optional[str]:
     """

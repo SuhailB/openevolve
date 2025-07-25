@@ -1,0 +1,83 @@
+// Kernel-start
+// EVOLVE-BLOCK-START
+void gemmKernel(
+  float A[256][256],
+  float B[256][256],
+  float C[256][256]
+){
+for(int i = 0; i < 256; ++i) {
+  for(int j = 0; j < 256; ++j) {
+    for(int k = 0; k < 256; ++k) {
+      C[i][j] += A[i][k] * B[k][j];
+    }
+  }
+}
+}
+// EVOLVE-BLOCK-END
+// Kernel-end
+
+// Testbench-start
+void gemmKernelGolden(
+  float A[256][256],
+  float B[256][256],
+  float C[256][256]
+){
+for(int i = 0; i < 256; ++i) {
+  for(int j = 0; j < 256; ++j) {
+    for(int k = 0; k < 256; ++k) {
+      C[i][j] += A[i][k] * B[k][j];
+    }
+  }
+}
+}
+#include <iostream>
+#include <random>
+#include <cmath>
+
+int main() {
+
+// EVOLVE-BLOCK-START
+
+  // Initialize matrices A, B, and C
+  float A[256][256] = {0};
+  float B[256][256] = {0};
+  float C[256][256] = {0};
+  float C_golden[256][256] = {0};
+
+  // Fill matrices A and B with random values
+  for(int i = 0; i < 256; ++i) {
+    for(int j = 0; j < 256; ++j) {
+      A[i][j] = static_cast<float>(rand()) / RAND_MAX;
+      B[i][j] = static_cast<float>(rand()) / RAND_MAX;
+              C[i][j] = static_cast<float>(rand()) / RAND_MAX; // Initialize C with random values too
+              C_golden[i][j] = C[i][j]; // Copy initial C values to C_golden
+    }
+  }
+
+  // if port width is changed in the kernel, make sure to change it here as well and do the correct logic
+  gemmKernel(A, B, C);
+// EVOLVE-BLOCK-END
+
+  // Call the golden function to compute the expected result and print first 3 elements
+  gemmKernelGolden(A, B, C_golden);
+  // Verify the result
+  bool success = true;
+  for(int i = 0; i < 256; ++i) {
+    for(int j = 0; j < 256; ++j) {
+      if (std::abs(C[i][j] - C_golden[i][j]) > 1e-5) {
+        success = false;
+        std::cout << "Mismatch at (" << i << ", " << j << "): "
+                  << "C[" << i << "][" << j << "] = " << C[i][j]
+                  << ", C_golden[" << i << "][" << j << "] = " << C_golden[i][j] << std::endl;
+        break;
+      }
+    }
+    if (!success) break;
+  }
+  if (success) {
+    std::cout << "Test passed!" << std::endl;
+  } else {
+    std::cout << "Test failed!" << std::endl;
+  }
+  return success ? 0 : 1;
+}// Testbench-end

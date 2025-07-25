@@ -31,7 +31,7 @@ DIFF_USER_TEMPLATE = """# Current Program Information
 ```
 
 # Task
-Suggest improvements to the program that will lead to better performance on the specified metrics.
+Suggest improvements to the regions between EVOLVE-BLOCK-START and EVOLVE-BLOCK-END comments in the program that will lead to better performance on the specified metrics.
 
 You MUST use the exact SEARCH/REPLACE diff format shown below to indicate changes:
 
@@ -77,7 +77,7 @@ FULL_REWRITE_USER_TEMPLATE = """# Current Program Information
 ```
 
 # Task
-Rewrite the program to improve its performance on the specified metrics.
+Rewrite the regions between EVOLVE-BLOCK-START and EVOLVE-BLOCK-END comments in the program to improve its performance on the specified metrics.
 Provide the complete new program code.
 
 IMPORTANT: Make sure your rewritten program maintains the same inputs and outputs
