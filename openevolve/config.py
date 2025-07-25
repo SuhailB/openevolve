@@ -3,7 +3,7 @@ Configuration handling for OpenEvolve
 """
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -317,74 +317,74 @@ class Config:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to a dictionary"""
-        return {
-            # General settings
-            "max_iterations": self.max_iterations,
-            "checkpoint_interval": self.checkpoint_interval,
-            "log_level": self.log_level,
-            "log_dir": self.log_dir,
-            "random_seed": self.random_seed,
-            # Component configurations
-            "llm": {
-                "models": self.llm.models,
-                "evaluator_models": self.llm.evaluator_models,
-                "api_base": self.llm.api_base,
-                "temperature": self.llm.temperature,
-                "top_p": self.llm.top_p,
-                "max_tokens": self.llm.max_tokens,
-                "timeout": self.llm.timeout,
-                "retries": self.llm.retries,
-                "retry_delay": self.llm.retry_delay,
-            },
-            "prompt": {
-                "template_dir": self.prompt.template_dir,
-                "system_message": self.prompt.system_message,
-                "evaluator_system_message": self.prompt.evaluator_system_message,
-                "num_top_programs": self.prompt.num_top_programs,
-                "num_diverse_programs": self.prompt.num_diverse_programs,
-                "use_template_stochasticity": self.prompt.use_template_stochasticity,
-                "template_variations": self.prompt.template_variations,
-                # Note: meta-prompting features not implemented
-                # "use_meta_prompting": self.prompt.use_meta_prompting,
-                # "meta_prompt_weight": self.prompt.meta_prompt_weight,
-            },
-            "database": {
-                "db_path": self.database.db_path,
-                "in_memory": self.database.in_memory,
-                "population_size": self.database.population_size,
-                "archive_size": self.database.archive_size,
-                "num_islands": self.database.num_islands,
-                "elite_selection_ratio": self.database.elite_selection_ratio,
-                "exploration_ratio": self.database.exploration_ratio,
-                "exploitation_ratio": self.database.exploitation_ratio,
-                # Note: diversity_metric fixed to "edit_distance"
-                # "diversity_metric": self.database.diversity_metric,
-                "feature_dimensions": self.database.feature_dimensions,
-                "feature_bins": self.database.feature_bins,
-                "migration_interval": self.database.migration_interval,
-                "migration_rate": self.database.migration_rate,
-                "random_seed": self.database.random_seed,
-                "log_prompts": self.database.log_prompts,
-            },
-            "evaluator": {
-                "timeout": self.evaluator.timeout,
-                "max_retries": self.evaluator.max_retries,
-                # Note: resource limits not implemented
-                # "memory_limit_mb": self.evaluator.memory_limit_mb,
-                # "cpu_limit": self.evaluator.cpu_limit,
-                "cascade_evaluation": self.evaluator.cascade_evaluation,
-                "cascade_thresholds": self.evaluator.cascade_thresholds,
-                "parallel_evaluations": self.evaluator.parallel_evaluations,
-                # Note: distributed evaluation not implemented
-                # "distributed": self.evaluator.distributed,
-                "use_llm_feedback": self.evaluator.use_llm_feedback,
-                "llm_feedback_weight": self.evaluator.llm_feedback_weight,
-            },
-            # Evolution settings
-            "diff_based_evolution": self.diff_based_evolution,
-            "max_code_length": self.max_code_length,
-        }
-
+        # return {
+        #     # General settings
+        #     "max_iterations": self.max_iterations,
+        #     "checkpoint_interval": self.checkpoint_interval,
+        #     "log_level": self.log_level,
+        #     "log_dir": self.log_dir,
+        #     "random_seed": self.random_seed,
+        #     # Component configurations
+        #     "llm": {
+        #         "models": self.llm.models,
+        #         "evaluator_models": self.llm.evaluator_models,
+        #         "api_base": self.llm.api_base,
+        #         "temperature": self.llm.temperature,
+        #         "top_p": self.llm.top_p,
+        #         "max_tokens": self.llm.max_tokens,
+        #         "timeout": self.llm.timeout,
+        #         "retries": self.llm.retries,
+        #         "retry_delay": self.llm.retry_delay,
+        #     },
+        #     "prompt": {
+        #         "template_dir": self.prompt.template_dir,
+        #         "system_message": self.prompt.system_message,
+        #         "evaluator_system_message": self.prompt.evaluator_system_message,
+        #         "num_top_programs": self.prompt.num_top_programs,
+        #         "num_diverse_programs": self.prompt.num_diverse_programs,
+        #         "use_template_stochasticity": self.prompt.use_template_stochasticity,
+        #         "template_variations": self.prompt.template_variations,
+        #         # Note: meta-prompting features not implemented
+        #         # "use_meta_prompting": self.prompt.use_meta_prompting,
+        #         # "meta_prompt_weight": self.prompt.meta_prompt_weight,
+        #     },
+        #     "database": {
+        #         "db_path": self.database.db_path,
+        #         "in_memory": self.database.in_memory,
+        #         "population_size": self.database.population_size,
+        #         "archive_size": self.database.archive_size,
+        #         "num_islands": self.database.num_islands,
+        #         "elite_selection_ratio": self.database.elite_selection_ratio,
+        #         "exploration_ratio": self.database.exploration_ratio,
+        #         "exploitation_ratio": self.database.exploitation_ratio,
+        #         # Note: diversity_metric fixed to "edit_distance"
+        #         # "diversity_metric": self.database.diversity_metric,
+        #         "feature_dimensions": self.database.feature_dimensions,
+        #         "feature_bins": self.database.feature_bins,
+        #         "migration_interval": self.database.migration_interval,
+        #         "migration_rate": self.database.migration_rate,
+        #         "random_seed": self.database.random_seed,
+        #         "log_prompts": self.database.log_prompts,
+        #     },
+        #     "evaluator": {
+        #         "timeout": self.evaluator.timeout,
+        #         "max_retries": self.evaluator.max_retries,
+        #         # Note: resource limits not implemented
+        #         # "memory_limit_mb": self.evaluator.memory_limit_mb,
+        #         # "cpu_limit": self.evaluator.cpu_limit,
+        #         "cascade_evaluation": self.evaluator.cascade_evaluation,
+        #         "cascade_thresholds": self.evaluator.cascade_thresholds,
+        #         "parallel_evaluations": self.evaluator.parallel_evaluations,
+        #         # Note: distributed evaluation not implemented
+        #         # "distributed": self.evaluator.distributed,
+        #         "use_llm_feedback": self.evaluator.use_llm_feedback,
+        #         "llm_feedback_weight": self.evaluator.llm_feedback_weight,
+        #     },
+        #     # Evolution settings
+        #     "diff_based_evolution": self.diff_based_evolution,
+        #     "max_code_length": self.max_code_length,
+        # }
+        return asdict(self)
     def to_yaml(self, path: Union[str, Path]) -> None:
         """Save configuration to a YAML file"""
         with open(path, "w") as f:

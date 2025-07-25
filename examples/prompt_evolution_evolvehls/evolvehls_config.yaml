@@ -1,0 +1,66 @@
+# main config
+log_level: "INFO"
+
+kernel_path: gemm.cpp
+top_func_name: gemmKernel
+output_dir: output_evolvehls
+
+enable_artifacts: true
+
+diff_based_evolution: true
+
+initial_program_path: initial_program.cpp
+enable_prompt_evolution: false
+
+iterations: 32
+
+openevolve_config:
+  checkpoint_interval: 50
+
+  # Configuration for circle packing constructor evolution (n=26)
+  max_iterations: 1000  # Increased iterations
+  max_code_length: 20000
+  # LLM configuration
+  llm:
+    # Primary model (used most frequently)
+    primary_model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+    primary_model_weight: 0.5         # Sampling weight for primary model
+    # primary_model_api_base: "http://172.22.0.0:8850/v1"
+
+    secondary_model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+    secondary_model_weight: 0.5
+    # secondary_model_api_base: "http://172.22.0.0:8850/v1"
+    
+    api_key: dummy
+    api_base: "http://172.22.0.0:8850/v1"
+
+    temperature: 0.7
+    top_p: 0.95
+    max_tokens: 8192
+    timeout: 600 
+
+  # Prompt configuration
+  prompt:
+    num_top_programs: 3
+    use_template_stochasticity: false
+
+  # Database configuration
+  database:
+    population_size: 1000
+    archive_size: 100
+
+    num_islands: 5                    # Balanced number of islands
+    migration_interval: 10            # Moderate migration frequency
+    migration_rate: 0.1               # Moderate migration rate
+
+    elite_selection_ratio: 0.3
+    exploitation_ratio: 0.8
+
+  # Evaluator configuration
+  evaluator:
+    source_code_extension: ".cpp"
+    timeout: 3600
+    cascade_evaluation: false
+    cascade_thresholds: [0.5, 0.75]
+    parallel_evaluations: 8
+    use_llm_feedback: false

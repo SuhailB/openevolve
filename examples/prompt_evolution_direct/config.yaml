@@ -1,0 +1,80 @@
+max_iterations: 100  # Increased iterations
+checkpoint_interval: 50
+log_level: "INFO"
+diff_based_evolution: false  # Use full rewrites instead of diffs
+
+# Configuration for circle packing constructor evolution (n=26)
+max_iterations: 1000  # Increased iterations
+max_code_length: 20000
+# LLM configuration
+llm:
+  # Primary model (used most frequently)
+  primary_model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  primary_model_weight: 0.5         # Sampling weight for primary model
+  # primary_model_api_base: "http://172.22.0.0:8850/v1"
+
+  secondary_model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  secondary_model_weight: 0.5
+  # secondary_model_api_base: "http://172.22.0.0:8850/v1"
+  
+  api_key: dummy
+  api_base: "http://172.22.0.0:8850/v1"
+  
+  temperature: 0.7
+  top_p: 0.95
+  max_tokens: 8192
+  timeout: 600 
+
+# Prompt configuration
+prompt:
+  system_message: |
+    You are an expert in prompt engineering and in hardware design using Vitis HLS.
+    We have an AI agent called EvolveHLS that improves HLS designs using LLMs and evolutionary algorithm.
+    However, the agent is sensetive to the prompt it is given. Your task it to improve the prompt and 
+    customize it based on the input kernel to help EvolveHLS achieve the highest combined_score 
+
+    Focus on improving the prompt quality and structure
+
+    *DO NOT*:
+    - Remove modify or remove anything outside the  <!-- EVOLVE-BLOCK-START --> and <!-- EVOLVE-BLOCK-END --> tags
+    - Include spceific code optimizations in the evolved prompt
+
+    Also make sure to include the following in the prompt:
+    ```md
+    ## *DO NOT*:
+    - Make sure the top level ports have AXI interfaces and do not use Array Partitioning for these ports
+    Example:
+      #pragma HLS INTERFACE m_axi port=<PORT_NAME> offset=slave bundle=gmem0 depth=<DEPTH>
+    - Remove or change the main function used as a testbench except preparing data when port widths increase
+    - Remove the // EVOLVE-BLOCK-START and // EVOLVE-BLOCK-END tags
+    - Change the problem size, the array sizes, or data types
+    - Change any code outside the // EVOLVE-BLOCK-START and // EVOLVE-BLOCK-END tags
+    ```
+
+    # Expected Output:
+    A well structured prompt in md format customized for the given code
+
+
+  num_top_programs: 3
+  use_template_stochasticity: false
+
+# Database configuration
+database:
+  population_size: 1000
+  archive_size: 100
+
+  num_islands: 5                    # Balanced number of islands
+  migration_interval: 10            # Moderate migration frequency
+  migration_rate: 0.1               # Moderate migration rate
+
+  elite_selection_ratio: 0.3
+  exploitation_ratio: 0.8
+
+# Evaluator configuration
+evaluator:
+  source_code_extension: ".md"
+  timeout: 3600
+  cascade_evaluation: false
+  cascade_thresholds: [0.5, 0.75]
+  parallel_evaluations: 16
+  use_llm_feedback: false
