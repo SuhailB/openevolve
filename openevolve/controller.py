@@ -17,6 +17,11 @@ from openevolve.evaluator import Evaluator
 from openevolve.llm.ensemble import LLMEnsemble
 from openevolve.prompt.sampler import PromptSampler
 from openevolve.process_parallel import ProcessParallelController
+from openevolve.meta_prompt_evolution import (
+    MetaPromptDatabase, 
+    MetaPromptEvolver, 
+    create_initial_meta_prompt
+)
 from openevolve.utils.code_utils import (
     extract_code_language,
 )
@@ -151,6 +156,22 @@ class OpenEvolve:
 
         self.database = ProgramDatabase(self.config.database)
 
+        # Initialize meta prompt evolution if enabled
+        self.meta_prompt_db = None
+        self.meta_prompt_evolver = None
+        if self.config.prompt.use_meta_prompting:
+            self.meta_prompt_db = MetaPromptDatabase(self.config.prompt)
+            self.meta_prompt_evolver = MetaPromptEvolver(self.llm_ensemble, self.config.prompt)
+            
+            # Connect meta prompt database to prompt sampler
+            self.prompt_sampler.set_meta_prompt_database(self.meta_prompt_db)
+            
+            # Create initial meta prompt from base system message
+            initial_meta_prompt = create_initial_meta_prompt(self.config.prompt.system_message)
+            self.meta_prompt_db.add_meta_prompt(initial_meta_prompt, iteration=0)
+            
+            logger.info("Initialized meta prompt evolution")
+
         self.evaluator = Evaluator(
             self.config.evaluator,
             evaluation_file,
@@ -258,7 +279,7 @@ class OpenEvolve:
         # Initialize improved parallel processing
         try:
             self.parallel_controller = ProcessParallelController(
-                self.config, self.evaluation_file, self.database
+                self.config, self.evaluation_file, self.database, self.meta_prompt_db
             )
 
             # Set up signal handlers for graceful shutdown
@@ -435,7 +456,9 @@ class OpenEvolve:
 
         # Run the evolution process with checkpoint callback
         await self.parallel_controller.run_evolution(
-            start_iteration, max_iterations, target_score, checkpoint_callback=self._save_checkpoint
+            start_iteration, max_iterations, target_score, 
+            checkpoint_callback=self._save_checkpoint,
+            meta_prompt_callback=self._maybe_evolve_meta_prompts
         )
 
         # Check if shutdown was requested
@@ -447,6 +470,44 @@ class OpenEvolve:
         final_iteration = start_iteration + max_iterations - 1
         if final_iteration > 0 and final_iteration % self.config.checkpoint_interval == 0:
             self._save_checkpoint(final_iteration)
+
+    async def _maybe_evolve_meta_prompts(self, iteration: int) -> None:
+        """Periodically evolve meta prompts based on performance feedback"""
+        if not self.meta_prompt_db or not self.meta_prompt_evolver:
+            return
+            
+        # Evolve meta prompts every N iterations (from config)
+        meta_prompt_evolution_interval = self.config.prompt.meta_prompt_evolution_interval
+        if iteration > 0 and iteration % meta_prompt_evolution_interval == 0:
+            logger.info(f"Evolving meta prompts at iteration {iteration}")
+            
+            try:
+                # Get performance feedback
+                top_programs = self.database.get_top_programs(n=5)
+                best_program = self.database.get_best_program()
+                
+                performance_feedback = {
+                    "iteration": iteration,
+                    "total_programs": len(self.database.programs),
+                    "best_score": best_program.metrics.get("combined_score", 0.0) if best_program else 0.0,
+                    "average_top_score": sum(p.metrics.get("combined_score", 0.0) for p in top_programs) / max(1, len(top_programs)),
+                }
+                
+                # Get current best meta prompt
+                current_meta_prompt = self.meta_prompt_db.get_best_meta_prompt()
+                
+                # Evolve meta prompt
+                new_meta_prompt = await self.meta_prompt_evolver.evolve_meta_prompt(
+                    current_meta_prompt, top_programs, performance_feedback
+                )
+                
+                # Add new meta prompt to database
+                self.meta_prompt_db.add_meta_prompt(new_meta_prompt, iteration)
+                
+                logger.info(f"Generated new meta prompt: {new_meta_prompt.id[:8]}...")
+                
+            except Exception as e:
+                logger.warning(f"Error during meta prompt evolution: {e}")
 
     def _save_best_program(self, program: Optional[Program] = None) -> None:
         """
