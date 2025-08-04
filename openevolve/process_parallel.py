@@ -30,6 +30,7 @@ class SerializableResult:
     artifacts: Optional[Dict[str, Any]] = None
     iteration: int = 0
     error: Optional[str] = None
+    meta_prompt_id: Optional[str] = None  # Track which meta prompt was used
 
 
 def _worker_init(config_dict: dict, evaluation_file: str) -> None:
@@ -163,8 +164,56 @@ def _run_iteration_worker(
             program_artifacts=parent_artifacts,
         )
         
-        iteration_start = time.time()
+        # Handle meta prompt selection in worker process if enabled
+        meta_prompt_id = None
+        if (_worker_config.prompt.use_meta_prompting and 
+            "meta_prompts" in db_snapshot and 
+            db_snapshot["meta_prompts"]):
+            
+            # Perform weighted selection of meta prompts in worker
+            import random
+            meta_prompts_data = db_snapshot["meta_prompts"]
+            meta_prompts = list(meta_prompts_data.items())
+            
+            # Calculate weights based on effectiveness scores with exploration bonuses
+            weights = []
+            for mp_id, mp_data in meta_prompts:
+                # Base weight from effectiveness
+                base_weight = mp_data.get("effectiveness_score", 0.0) + 0.1
+                
+                # Exploration bonus for newer generations (encourages trying evolved prompts)
+                generation = mp_data.get("generation", 0)
+                generation_bonus = 0.2 * generation if generation > 0 else 0.0
+                
+                # Small bonus for under-explored meta prompts
+                programs_generated = mp_data.get("programs_generated", 0)
+                exploration_bonus = 0.1 if programs_generated < 5 else 0.0
+                
+                total_weight = base_weight + generation_bonus + exploration_bonus
+                weights.append(total_weight)
+            
+            # Select meta prompt using weighted random choice
+            selected_mp_id, selected_mp_data = random.choices(meta_prompts, weights=weights, k=1)[0]
+            
+            # Override the system message with the selected meta prompt
+            original_system = prompt["system"][:50] + "..." if len(prompt["system"]) > 50 else prompt["system"]
+            prompt["system"] = selected_mp_data["content"]
+            meta_prompt_id = selected_mp_id
+            
+            logger.info(f"🎯 Worker process: Meta prompt selection successful!")
+            logger.info(f"   Selected: {meta_prompt_id[:8]}... (effectiveness: {selected_mp_data.get('effectiveness_score', 0.0):.3f}, gen: {selected_mp_data.get('generation', 0)}, programs: {selected_mp_data.get('programs_generated', 0)})")
+            logger.info(f"   Original system: {original_system}")
+            logger.info(f"   Replaced with:   {selected_mp_data['content'][:50]}...")
+        else:
+            # Fallback: try to get from prompt sampler (shouldn't happen in workers)
+            meta_prompt_id = _worker_prompt_sampler.get_current_meta_prompt_id()
+            if meta_prompt_id:
+                logger.debug("Using meta prompt ID from worker prompt sampler (fallback)")
+            elif _worker_config.prompt.use_meta_prompting:
+                logger.debug("Meta prompting enabled but no meta prompts available in worker")
         
+        iteration_start = time.time()
+        logger.info(f"OpenEvolve System Prompt:\n{prompt['system']}")
         # Generate code modification (sync wrapper for async)
         llm_response = asyncio.run(
             _worker_llm_ensemble.generate_with_context(
@@ -181,7 +230,8 @@ def _run_iteration_worker(
             if not diff_blocks:
                 return SerializableResult(
                     error=f"No valid diffs found in response",
-                    iteration=iteration
+                    iteration=iteration,
+                    meta_prompt_id=meta_prompt_id
                 )
             
             child_code = apply_diff(parent.code, llm_response)
@@ -193,7 +243,8 @@ def _run_iteration_worker(
             if not new_code:
                 return SerializableResult(
                     error=f"No valid code found in response",
-                    iteration=iteration
+                    iteration=iteration,
+                    meta_prompt_id=meta_prompt_id
                 )
             
             child_code = new_code
@@ -203,7 +254,8 @@ def _run_iteration_worker(
         if len(child_code) > _worker_config.max_code_length:
             return SerializableResult(
                 error=f"Generated code exceeds maximum length ({len(child_code)} > {_worker_config.max_code_length})",
-                iteration=iteration
+                iteration=iteration,
+                meta_prompt_id=meta_prompt_id
             )
         
         # Evaluate the child program
@@ -241,24 +293,33 @@ def _run_iteration_worker(
             prompt=prompt,
             llm_response=llm_response,
             artifacts=artifacts,
-            iteration=iteration
+            iteration=iteration,
+            meta_prompt_id=meta_prompt_id
         )
         
     except Exception as e:
         logger.exception(f"Error in worker iteration {iteration}")
+        # meta_prompt_id might not be defined if error occurred early
+        try:
+            prompt_id = meta_prompt_id
+        except NameError:
+            prompt_id = None
+        
         return SerializableResult(
             error=str(e),
-            iteration=iteration
+            iteration=iteration,
+            meta_prompt_id=prompt_id
         )
 
 
 class ProcessParallelController:
     """Controller for process-based parallel evolution"""
     
-    def __init__(self, config: Config, evaluation_file: str, database: ProgramDatabase):
+    def __init__(self, config: Config, evaluation_file: str, database: ProgramDatabase, meta_prompt_db=None):
         self.config = config
         self.evaluation_file = evaluation_file
         self.database = database
+        self.meta_prompt_db = meta_prompt_db  # For meta prompt evolution
         
         self.executor: Optional[ProcessPoolExecutor] = None
         self.shutdown_event = mp.Event()
@@ -340,6 +401,7 @@ class ProcessParallelController:
             ],
             "current_island": self.database.current_island,
             "artifacts": {},  # Will be populated selectively
+            "meta_prompts": {},  # Will be populated if meta prompt evolution is enabled
         }
         
         # Include artifacts for programs that might be selected
@@ -354,6 +416,19 @@ class ProcessParallelController:
             if artifacts:
                 snapshot["artifacts"][pid] = artifacts
         
+        # Include meta prompts if meta prompt evolution is enabled
+        if self.meta_prompt_db and self.meta_prompt_db.meta_prompts:
+            snapshot["meta_prompts"] = {
+                mp_id: {
+                    "content": mp.content,
+                    "effectiveness_score": mp.effectiveness_score,
+                    "programs_generated": mp.programs_generated,
+                    "generation": mp.generation,
+                }
+                for mp_id, mp in self.meta_prompt_db.meta_prompts.items()
+            }
+            logger.info(f"📦 Sending {len(snapshot['meta_prompts'])} meta prompts to workers via snapshot")
+        
         return snapshot
     
     async def run_evolution(
@@ -362,6 +437,7 @@ class ProcessParallelController:
         max_iterations: int,
         target_score: Optional[float] = None,
         checkpoint_callback=None,
+        meta_prompt_callback=None,
     ):
         """Run evolution with process-based parallelism"""
         if not self.executor:
@@ -422,6 +498,12 @@ class ProcessParallelController:
                     
                     # Add to database
                     self.database.add(child_program, iteration=completed_iteration)
+                    
+                    # Link to meta prompt if available (for meta prompt evolution)
+                    if hasattr(self, 'meta_prompt_db') and self.meta_prompt_db and result.meta_prompt_id:
+                        self.meta_prompt_db.link_program_to_meta_prompt(child_program.id, result.meta_prompt_id)
+                        # Update meta prompt performance
+                        self.meta_prompt_db.update_meta_prompt_performance(child_program)
                     
                     # Store artifacts
                     if result.artifacts:
@@ -499,6 +581,10 @@ class ProcessParallelController:
                         self.database.log_island_status()
                         if checkpoint_callback:
                             checkpoint_callback(completed_iteration)
+                    
+                    # Meta prompt evolution callback
+                    if meta_prompt_callback:
+                        await meta_prompt_callback(completed_iteration)
                     
                     # Check target score
                     if target_score is not None and child_program.metrics:

@@ -11,6 +11,11 @@ from openevolve.prompt.templates import TemplateManager
 from openevolve.utils.format_utils import format_metrics_safe
 from openevolve.utils.metrics_utils import safe_numeric_average
 
+# Import for meta prompt evolution
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from openevolve.meta_prompt_evolution import MetaPromptDatabase
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +32,10 @@ class PromptSampler:
         # Store custom template mappings
         self.system_template_override = None
         self.user_template_override = None
+        
+        # Meta prompt evolution support
+        self.meta_prompt_db: Optional["MetaPromptDatabase"] = None
+        self.current_meta_prompt_id: Optional[str] = None
 
         # Only log once to reduce duplication
         if not hasattr(logger, "_prompt_sampler_logged"):
@@ -46,6 +55,16 @@ class PromptSampler:
         self.system_template_override = system_template
         self.user_template_override = user_template
         logger.info(f"Set custom templates: system={system_template}, user={user_template}")
+    
+    def set_meta_prompt_database(self, meta_prompt_db: "MetaPromptDatabase") -> None:
+        """
+        Set the meta prompt database for meta prompt evolution
+        
+        Args:
+            meta_prompt_db: The meta prompt database instance
+        """
+        self.meta_prompt_db = meta_prompt_db
+        logger.info("Set meta prompt database for prompt sampler")
 
     def build_prompt(
         self,
@@ -96,11 +115,13 @@ class PromptSampler:
         # Get the template
         user_template = self.template_manager.get_template(user_template_key)
 
+        logger.debug(f"PromptSampler build_prompt: meta_prompt_db = {self.meta_prompt_db is not None}")
         # Use system template override if set
         if self.system_template_override:
             system_message = self.template_manager.get_template(self.system_template_override)
         else:
-            system_message = self.config.system_message
+            # Check if meta prompt evolution is enabled and available
+            system_message = self._get_system_message()
             # If system_message is a template name rather than content, get the template
             if system_message in self.template_manager.templates:
                 system_message = self.template_manager.get_template(system_message)
@@ -142,6 +163,29 @@ class PromptSampler:
             "system": system_message,
             "user": user_message,
         }
+    
+    def get_current_meta_prompt_id(self) -> Optional[str]:
+        """Get the ID of the meta prompt used for the current generation"""
+        return self.current_meta_prompt_id
+    
+    def _get_system_message(self) -> str:
+        """Get the system message, using meta prompt evolution if enabled"""
+        # Check if meta prompt evolution is enabled and database is available
+        if (self.config.use_meta_prompting and 
+            self.meta_prompt_db is not None):
+            
+            # Sample a meta prompt from the database
+            meta_prompt = self.meta_prompt_db.sample_meta_prompt()
+            if meta_prompt:
+                self.current_meta_prompt_id = meta_prompt.id
+                logger.debug(f"Using meta prompt {meta_prompt.id} for system message")
+                return meta_prompt.content
+            else:
+                logger.debug("No meta prompts available, using default system message")
+        
+        # Fall back to default system message
+        self.current_meta_prompt_id = None
+        return self.config.system_message
 
     def _format_metrics(self, metrics: Dict[str, float]) -> str:
         """Format metrics for the prompt using safe formatting"""
