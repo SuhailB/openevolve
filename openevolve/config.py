@@ -155,6 +155,7 @@ class PromptConfig:
     # Meta-prompting
     use_meta_prompting: bool = False
     meta_prompt_weight: float = 0.1
+    meta_prompt_evolution_interval: int = 20  # Evolve meta prompts every N iterations
 
     # Artifact rendering
     include_artifacts: bool = True
