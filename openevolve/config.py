@@ -69,13 +69,8 @@ class LLMConfig(LLMModelConfig):
     # Backwardes compatibility with primary_model(_weight) options
     primary_model: str = None
     primary_model_weight: float = None
-    primary_model_api_base: str = None
-    primary_model_api_key: str = None
-
     secondary_model: str = None
     secondary_model_weight: float = None
-    secondary_model_api_base: str = None
-    secondary_model_api_key: str = None
 
     def __post_init__(self):
         """Post-initialization to set up model configurations"""
@@ -87,14 +82,6 @@ class LLMConfig(LLMModelConfig):
             self.models[0].name = self.primary_model
         if self.primary_model_weight:
             self.models[0].weight = self.primary_model_weight
-        if self.primary_model_api_base:
-            self.models[0].api_base = self.primary_model_api_base
-        else:
-            self.models[0].api_base = self.api_base
-        if self.primary_model_api_key:
-            self.models[0].api_key = self.primary_model_api_key
-        else:
-            self.models[0].api_key = self.api_key
 
         if (self.secondary_model or self.secondary_model_weight) and len(self.models) < 2:
             # Ensure we have a second model
@@ -103,14 +90,6 @@ class LLMConfig(LLMModelConfig):
             self.models[1].name = self.secondary_model
         if self.secondary_model_weight:
             self.models[1].weight = self.secondary_model_weight
-        if self.secondary_model_api_base:
-            self.models[1].api_base = self.secondary_model_api_base
-        else:
-            self.models[1].api_base = self.api_base
-        if self.secondary_model_api_key:
-            self.models[1].api_key = self.secondary_model_api_key
-        else:
-            self.models[1].api_key = self.api_key
 
         # If no evaluator models are defined, use the same models as for evolution
         if not self.evaluator_models or len(self.evaluator_models) < 1:
@@ -118,6 +97,8 @@ class LLMConfig(LLMModelConfig):
 
         # Update models with shared configuration values
         shared_config = {
+            "api_base": self.api_base,
+            "api_key": self.api_key,
             "temperature": self.temperature,
             "top_p": self.top_p,
             "max_tokens": self.max_tokens,
