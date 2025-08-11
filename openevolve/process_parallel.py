@@ -175,24 +175,14 @@ def _run_iteration_worker(
         )
 
         iteration_start = time.time()
-<<<<<<< HEAD
 
-=======
-        # logger.info(f"OpenEvolve System message:\n {prompt['system']}")
-        # logger.info(f"OpenEvolve User message:\n {prompt['user']}")
->>>>>>> 8099335 (Updated prompt templates and llm response parsing)
-        # Generate code modification (sync wrapper for async)
         llm_response = asyncio.run(
             _worker_llm_ensemble.generate_with_context(
                 system_message=prompt["system"],
                 messages=[{"role": "user", "content": prompt["user"]}],
             )
         )
-<<<<<<< HEAD
-
-=======
         logger.debug(f"OpenEvolve LLM Response:\n {llm_response}")
->>>>>>> 8099335 (Updated prompt templates and llm response parsing)
         # Parse response based on evolution mode
         if _worker_config.diff_based_evolution:
             from openevolve.utils.code_utils import extract_diffs, apply_diff, format_diff_summary
@@ -225,11 +215,7 @@ def _run_iteration_worker(
 
             child_code = new_code
             changes_summary = "Full rewrite"
-<<<<<<< HEAD
-
-=======
         logger.debug(f"OpenEvolve LLM Response After Parsing:\n {child_code}")
->>>>>>> 8099335 (Updated prompt templates and llm response parsing)
         # Check code length
         if len(child_code) > _worker_config.max_code_length:
             return SerializableResult(
