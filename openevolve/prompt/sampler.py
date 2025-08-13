@@ -60,6 +60,7 @@ class PromptSampler:
         diff_based_evolution: bool = True,
         template_key: Optional[str] = None,
         program_artifacts: Optional[Dict[str, Union[str, bytes]]] = None,
+        system_message_override: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, str]:
         """
@@ -96,14 +97,18 @@ class PromptSampler:
         # Get the template
         user_template = self.template_manager.get_template(user_template_key)
 
-        # Use system template override if set
-        if self.system_template_override:
-            system_message = self.template_manager.get_template(self.system_template_override)
+        # Use explicit override if provided (meta-prompt evolution)
+        if system_message_override is not None:
+            system_message = system_message_override
         else:
-            system_message = self.config.system_message
-            # If system_message is a template name rather than content, get the template
-            if system_message in self.template_manager.templates:
-                system_message = self.template_manager.get_template(system_message)
+            # Use system template override if set
+            if self.system_template_override:
+                system_message = self.template_manager.get_template(self.system_template_override)
+            else:
+                system_message = self.config.system_message
+                # If system_message is a template name rather than content, get the template
+                if system_message in self.template_manager.templates:
+                    system_message = self.template_manager.get_template(system_message)
 
         # Format metrics
         metrics_str = self._format_metrics(program_metrics)

@@ -74,7 +74,7 @@ async def run_iteration_with_shared_db(
 
         result = Result(parent=parent)
         iteration_start = time.time()
-
+        logger.info(f"Current system message:\n{prompt['system']}")
         # Generate code modification
         llm_response = await llm_ensemble.generate_with_context(
             system_message=prompt["system"],

@@ -17,6 +17,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from openevolve.config import Config
 from openevolve.database import Program, ProgramDatabase
+from openevolve.prompt.meta import MetaPromptEvolver
+from openevolve.prompt.templates import TemplateManager
+from openevolve.llm.ensemble import LLMEnsemble
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +127,12 @@ def _lazy_init_worker_components():
 
 
 def _run_iteration_worker(
-    iteration: int, db_snapshot: Dict[str, Any], parent_id: str, inspiration_ids: List[str]
+    iteration: int,
+    db_snapshot: Dict[str, Any],
+    parent_id: str,
+    inspiration_ids: List[str],
+    system_message_override: Optional[str] = None,
+    meta_prompt_id: Optional[str] = None,
 ) -> SerializableResult:
     """Run a single iteration in a worker process"""
     try:
@@ -172,10 +180,18 @@ def _run_iteration_worker(
             evolution_round=iteration,
             diff_based_evolution=_worker_config.diff_based_evolution,
             program_artifacts=parent_artifacts,
+            system_message_override=system_message_override,
         )
 
-        iteration_start = time.time()
+        # Record meta prompt id used (for logging/fitness updates)
+        if meta_prompt_id:
+            try:
+                prompt["__meta_prompt_id"] = meta_prompt_id
+            except Exception:
+                pass
 
+        iteration_start = time.time()
+        logger.info(f"Current system message:\n{prompt['system']}")
         llm_response = asyncio.run(
             _worker_llm_ensemble.generate_with_context(
                 system_message=prompt["system"],
@@ -280,6 +296,36 @@ class ProcessParallelController:
         self.num_workers = config.evaluator.parallel_evaluations
 
         logger.info(f"Initialized process parallel controller with {self.num_workers} workers")
+
+        # Initialize meta-prompt evolver (system prompt only)
+        output_dir = os.path.dirname(self.evaluation_file) or "."
+        meta_dir = os.path.join(output_dir, "openevolve_meta")
+        initial_system = self.config.prompt.system_message
+        # Resolve template key to actual content if applicable
+        try:
+            tm = TemplateManager(self.config.prompt.template_dir)
+            if isinstance(initial_system, str) and initial_system in tm.templates:
+                initial_system = tm.get_template(initial_system)
+        except Exception:
+            pass
+        self.meta_evolver = MetaPromptEvolver(
+            storage_dir=meta_dir,
+            initial_prompt=initial_system,
+            use_meta_prompting=getattr(self.config.prompt, "use_meta_prompting", False),
+            evolution_interval=getattr(self.config.prompt, "meta_prompt_evolution_interval", 50),
+            max_population=8,
+            rng_seed=getattr(self.config, "random_seed", None),
+        )
+
+        # LLM ensemble for meta-prompt generation (optional)
+        self._meta_llm_ensemble: Optional[LLMEnsemble] = None
+        if getattr(self.config.prompt, "use_meta_prompting", False):
+            try:
+                self._meta_llm_ensemble = LLMEnsemble(self.config.llm.models)
+            except Exception as e:
+                logger.warning(
+                    f"Meta-prompt LLM ensemble initialization failed; will skip meta generation: {e}"
+                )
 
     def _serialize_config(self, config: Config) -> dict:
         """Serialize config object to a dictionary that can be pickled"""
@@ -535,6 +581,19 @@ class ProcessParallelController:
                                 )
                                 break
 
+                    # Update meta-prompt fitness from this iteration's metrics
+                    if getattr(self.config.prompt, "use_meta_prompting", False):
+                        # Which prompt was used? We log template prompts with result.prompt
+                        # We attach the selected meta-prompt id in the prompt dict under key '__meta_prompt_id' when submitting.
+                        try:
+                            meta_id = None
+                            if result.prompt and isinstance(result.prompt, dict):
+                                meta_id = result.prompt.get("__meta_prompt_id")
+                            if meta_id:
+                                self.meta_evolver.update_fitness(meta_id, child_program.metrics)
+                        except Exception as e:
+                            logger.debug(f"Failed to update meta-prompt fitness: {e}")
+
             except Exception as e:
                 logger.error(f"Error processing result from iteration {completed_iteration}: {e}")
 
@@ -546,6 +605,13 @@ class ProcessParallelController:
                 if future:
                     pending_futures[next_iteration] = future
                     next_iteration += 1
+
+            # Periodically evolve meta prompts
+            try:
+                if getattr(self.config.prompt, "use_meta_prompting", False) and self._meta_llm_ensemble:
+                    await self.meta_evolver.maybe_evolve(self._meta_llm_ensemble, completed_iteration)
+            except Exception as e:
+                logger.debug(f"Meta-prompt evolution step error: {e}")
 
         # save metrics to json file
         output_dir = Path(self.config.evaluator.tmp_dir)
@@ -573,12 +639,32 @@ class ProcessParallelController:
             db_snapshot = self._create_database_snapshot()
 
             # Submit to process pool
+            # Choose a meta-prompt (system prompt override) if enabled
+            system_override = None
+            meta_prompt_id = None
+            if getattr(self.config.prompt, "use_meta_prompting", False):
+                meta_prompt_id = self.meta_evolver.select_prompt_id()
+                try:
+                    system_override = self.meta_evolver.get_prompt(meta_prompt_id)
+                    # Log selected prompt id and a short preview for traceability
+                    preview = (system_override or "").splitlines()
+                    preview_str = preview[0] if preview else ""
+                    logger.info(
+                        f"MetaPrompt: using '{meta_prompt_id}' for iteration {iteration} | preview: {preview_str[:120]}"
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to retrieve system prompt for '{meta_prompt_id}': {e}")
+                    system_override = None
+
+            # Submit to process pool with system override
             future = self.executor.submit(
                 _run_iteration_worker,
                 iteration,
                 db_snapshot,
                 parent.id,
                 [insp.id for insp in inspirations],
+                system_override,
+                meta_prompt_id,
             )
 
             return future
@@ -586,3 +672,4 @@ class ProcessParallelController:
         except Exception as e:
             logger.error(f"Error submitting iteration {iteration}: {e}")
             return None
+
